@@ -23,24 +23,29 @@ This project implements automated key rotation for JWT signing in Keycloak, usin
 ### Setup Instructions
 
 1. Clone this repository and navigate to its directory:
-   ```
-   git clone <repository-url>
+   ```bash
+   git clone <repository-url> # Replace with your repository URL
    cd AutoKeyRotation
    ```
 
-2. Start the services:
+2. Start the services using Docker Compose:
+   ```bash
+   docker-compose up -d
    ```
-   ./restart.sh
-   ```
+   This command will build the necessary images (if not already built) and start all services (Keycloak, Vault, PostgreSQL, key-rotation) in detached mode.
 
-3. The `restart.sh` script will:
-   - Initialize Vault with the required configuration
-   - Generate the initial signing key
-   - Create a dedicated 'vault-integrated' realm
-   - Set up key providers to display keys
-   - Start the automatic key rotation service
+3. The `key-rotation` service automatically handles initialization on first start:
+   - Waits for Vault and Keycloak to be available.
+   - Initializes Vault with the required KV secrets engine (`secret/keycloak/keys/signing`).
+   - Generates the initial signing key pair and stores it in Vault.
+   - Creates the `vault-integrated` realm in Keycloak.
+   - Configures the `vault-key-provider` (importing the key from Vault) and `fallback-key-provider` in the new realm.
+   - Creates a test client (`test-client`) and user (`testuser`/`password`) in the `vault-integrated` realm.
+   - Starts the hourly key rotation process.
 
-4. Access the services:
+4. Wait a minute or two for all services to fully initialize, especially the `key-rotation` service's setup steps.
+
+5. Access the services:
 
    - **Keycloak Admin Console**: http://localhost:8080/
      - Username: `admin`
@@ -48,6 +53,16 @@ This project implements automated key rotation for JWT signing in Keycloak, usin
 
    - **HashiCorp Vault UI**: http://localhost:8201/ui
      - Token: `root` (this is the development root token)
+
+### Optional: Using restart.sh
+
+The `./restart.sh` script provides a convenient way to stop, remove volumes (perform a clean wipe), and restart the services. It also includes an optional (currently non-functional) step to build the Keycloak Vault SPI.
+
+To perform a clean restart:
+```bash
+./restart.sh
+```
+Follow the prompts (you can usually answer 'n' to skip the SPI build).
 
 ### Verifying the Setup
 
@@ -63,7 +78,7 @@ This project implements automated key rotation for JWT signing in Keycloak, usin
    - Select 'vault-integrated' realm
    - Go to Realm Settings
    - Click on the 'Keys' tab
-   - You should see 'vault-key-provider' and 'fallback-key-provider'
+   - You should see active keys listed. The `vault-key-provider` (using the key from Vault) and `fallback-key-provider` components are configured, although the imported Vault key might not be explicitly listed in the UI's 'Keys list' tab in Keycloak 22.
 
 4. Verify the Keycloak environment variables:
    ```
@@ -118,14 +133,15 @@ docker-compose down -v
 
 ## How It Works
 
-1. The Vault container is initialized with a KV secrets engine
-2. The key rotation service generates and manages RSA keys for Keycloak
-3. Keys are stored securely in Vault with a versioning mechanism
-4. A scheduler in the key-rotation service runs the rotation script hourly
-5. The rotation script preserves old keys while making new ones active
-6. When keys are rotated, a notification is sent to Keycloak to refresh its key cache
-7. A custom realm is created with direct integration to the Vault keys
-8. Keycloak is configured with environment variables to access Vault (SPI implementation in progress)
+1. The `docker-compose up` command starts all containers.
+2. The `key-rotation` container's entrypoint script waits for dependencies and then runs initialization scripts (`init-vault.sh`, `rotate-keys-with-history.sh`, `create-custom-realm.sh`, `setup-keycloak-provider.sh`).
+3. `init-vault.sh` configures the KV secrets engine in Vault.
+4. `rotate-keys-with-history.sh` generates the first key pair and saves it to Vault.
+5. `create-custom-realm.sh` creates the `vault-integrated` realm and configures the `vault-key-provider` (importing the Vault key) and `fallback-key-provider`.
+6. The `key-rotation` container then enters a loop, running `rotate-keys-with-history.sh` every hour.
+7. `rotate-keys-with-history.sh` generates a new key, adds it to Vault, updates the active key pointer, and calls `notify-keycloak.sh`.
+8. `notify-keycloak.sh` tells Keycloak to clear its key cache, forcing it to potentially reload keys (relevant if the SPI was working or if using a provider that reads dynamically).
+9. The `vault-key-provider` component (using the built-in `rsa` provider) in Keycloak holds the imported key details.
 
 ## Next Steps
 
