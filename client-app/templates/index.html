@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keycloak Client Secret Rotation Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container { max-width: 800px; margin-top: 40px; }
+        .card { margin-bottom: 20px; }
+        pre { background-color: #f8f9fa; padding: 15px; border-radius: 4px; }
+        .api-response { max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Keycloak Client Secret Rotation Demo</h1>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Authentication Status</h5>
+            </div>
+            <div class="card-body">
+                {% if user %}
+                    <div class="alert alert-success">
+                        <strong>Authenticated!</strong> Hello, {{ user.preferred_username or user.email or "User" }}
+                    </div>
+                    <a href="/logout" class="btn btn-outline-danger">Logout</a>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <strong>Not authenticated!</strong> Click the button below to login with Keycloak.
+                    </div>
+                    <a href="/login" class="btn btn-primary">Login with Keycloak</a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if user %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">System Status</h5>
+            </div>
+            <div class="card-body">
+                <button id="check-status" class="btn btn-info mb-3">Check System Status</button>
+                <div id="status-response" class="api-response"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Direct Token (Client Credentials)</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    This demonstrates obtaining a token using the client credentials flow, which is
+                    typically used for machine-to-machine communication.
+                </p>
+                <button id="get-direct-token" class="btn btn-secondary mb-3">Get Token</button>
+                <div id="direct-token-response" class="api-response"></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Function to format JSON responses
+        function formatJSON(json) {
+            return JSON.stringify(json, null, 2);
+        }
+
+        // Check system status
+        document.getElementById('check-status')?.addEventListener('click', async () => {
+            const responseDiv = document.getElementById('status-response');
+            responseDiv.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div></div>';
+            
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                responseDiv.innerHTML = '<pre>' + formatJSON(data) + '</pre>';
+            } catch (error) {
+                responseDiv.innerHTML = '<div class="alert alert-danger">Error: ' + error.message + '</div>';
+            }
+        });
+
+        // Get direct token using client credentials
+        document.getElementById('get-direct-token')?.addEventListener('click', async () => {
+            const responseDiv = document.getElementById('direct-token-response');
+            responseDiv.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div></div>';
+            
+            try {
+                const response = await fetch('/api/direct-token');
+                const data = await response.json();
+                responseDiv.innerHTML = '<pre>' + formatJSON(data) + '</pre>';
+            } catch (error) {
+                responseDiv.innerHTML = '<div class="alert alert-danger">Error: ' + error.message + '</div>';
+            }
+        });
+    </script>
+</body>
+</html> 

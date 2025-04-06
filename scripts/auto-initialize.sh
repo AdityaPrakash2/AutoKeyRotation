@@ -64,6 +64,13 @@ log "Step 3: Performing initial client secret rotation..."
 }
 log "✅ Initial client secret rotation completed successfully"
 
+# Step 3.5: Clear any existing Keycloak sessions
+log "Step 3.5: Clearing any existing Keycloak sessions..."
+/scripts/clear-keycloak-sessions.sh || {
+  log "⚠️ Failed to clear sessions, but continuing anyway"
+}
+log "✅ Keycloak sessions cleared"
+
 # Step 4: Setup cron job for periodic rotation
 log "Step 4: Setting up cron job for periodic rotation..."
 mkdir -p /etc/cron.d
