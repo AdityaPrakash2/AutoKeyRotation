@@ -1,0 +1,2 @@
+org.keycloak.vault.spi.VaultClientSecretProviderFactory
+org.keycloak.vault.spi.VaultClientSecretAuthenticatorProviderFactory 

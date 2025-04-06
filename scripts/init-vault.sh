@@ -2,43 +2,31 @@
 set -e
 
 # Configuration
-VAULT_ADDR=${VAULT_ADDR:-"http://localhost:8201"}
-VAULT_TOKEN=${VAULT_TOKEN:-"root"}
+VAULT_ADDR=${VAULT_ADDR:-http://vault:8201}
+VAULT_TOKEN=${VAULT_TOKEN:-root}
 
-echo "Initializing Vault for Keycloak integration..."
+echo "Initializing Vault at $VAULT_ADDR with token $VAULT_TOKEN"
 
-# Enable the KV v2 secrets engine if not already enabled
-echo "Enabling KV secrets engine..."
-curl -s \
+# Enable KV secrets engine v2 at 'kv/' path
+echo "Enabling KV secrets engine version 2 at path 'kv/'..."
+curl -s -X POST \
+  "$VAULT_ADDR/v1/sys/mounts/kv" \
   -H "X-Vault-Token: $VAULT_TOKEN" \
-  -X POST \
-  -d '{"type": "kv", "options": {"version": "2"}}' \
-  $VAULT_ADDR/v1/sys/mounts/secret || echo "Secret engine may already be enabled"
+  -H "Content-Type: application/json" \
+  -d '{"type": "kv", "options": {"version": "2"}}' || echo "KV secrets engine may already be mounted"
 
-# Create Keycloak policy
-echo "Creating Keycloak policy..."
-curl -s \
+# Disable unnecessary secret engines for a cleaner interface
+# Note: cubbyhole engine cannot be disabled as it's used internally by Vault
+echo "Disabling the default 'secret/' KV engine..."
+curl -s -X DELETE \
+  "$VAULT_ADDR/v1/sys/mounts/secret" \
+  -H "X-Vault-Token: $VAULT_TOKEN" || echo "Secret engine might not exist or can't be disabled"
+
+echo "Creating Keycloak secrets path..."
+curl -s -X POST \
+  "$VAULT_ADDR/v1/kv/data/keycloak/clients/fresh-realm/fresh-client" \
   -H "X-Vault-Token: $VAULT_TOKEN" \
-  -X PUT \
-  -d '{
-    "policy": "path \"secret/data/keycloak/keys/*\" {\n  capabilities = [\"read\", \"list\"]\n}\n\npath \"secret/metadata/keycloak/keys/*\" {\n  capabilities = [\"read\", \"list\"]\n}"
-  }' \
-  $VAULT_ADDR/v1/sys/policies/acl/keycloak
+  -H "Content-Type: application/json" \
+  -d '{"data":{"client_secret":"initial-secret"}}' > /dev/null
 
-# Create a token with the Keycloak policy
-echo "Creating Keycloak token..."
-KEYCLOAK_TOKEN=$(curl -s \
-  -H "X-Vault-Token: $VAULT_TOKEN" \
-  -X POST \
-  -d '{
-    "policies": ["keycloak"],
-    "ttl": "720h",
-    "renewable": true
-  }' \
-  $VAULT_ADDR/v1/auth/token/create | grep -o '"client_token":"[^"]*' | cut -d':' -f2 | tr -d '"')
-
-echo "Vault initialization completed!"
-echo "Keycloak token: $KEYCLOAK_TOKEN"
-echo ""
-echo "Save this token. You will need it for Keycloak configuration."
-echo "You can now generate an initial key by running ./scripts/rotate-keys-with-history.sh" 
+echo "Vault initialization completed successfully!" 

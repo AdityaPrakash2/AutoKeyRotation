@@ -1,160 +1,168 @@
-# Automated Key Rotation in Keycloak Using HashiCorp Vault
+# Keycloak Client Secret Automation with HashiCorp Vault
 
-This project implements automated key rotation for JWT signing in Keycloak, using HashiCorp Vault as a secure secret store.
+This project demonstrates how to integrate HashiCorp Vault with Keycloak for automated client secret management. It includes scripts for:
 
-## Current Status
+1. Creating realms and clients in Keycloak
+2. Storing client secrets in HashiCorp Vault
+3. Rotating client secrets automatically
+4. Testing authentication with client secrets from Vault
 
-- ✅ Working Docker Compose environment with Keycloak, Vault, PostgreSQL, and key rotation service
-- ✅ Automated key generation and rotation scripts
-- ✅ Integration between services
-- ✅ Key history preservation
-- ✅ Automatic key rotation notification to Keycloak
-- ✅ Active key display and monitoring
-- ✅ Custom realm with direct Vault key integration
-- 🚧 Keycloak SPI for Vault integration (in progress)
+## Prerequisites
 
-## Getting Started
+- Docker and Docker Compose
+- Bash shell (for Linux/macOS) or Git Bash/WSL (for Windows)
 
-### Prerequisites
+## Quickstart
 
-- Docker and Docker Compose installed
-- Git (for cloning the repository)
+### Option 1: Simple Docker Compose Command
 
-### Setup Instructions
-
-1. Clone this repository and navigate to its directory:
-   ```bash
-   git clone <repository-url> # Replace with your repository URL
-   cd AutoKeyRotation
-   ```
-
-2. Start the services using Docker Compose:
-   ```bash
-   docker-compose up -d
-   ```
-   This command will build the necessary images (if not already built) and start all services (Keycloak, Vault, PostgreSQL, key-rotation) in detached mode.
-
-3. The `key-rotation` service automatically handles initialization on first start:
-   - Waits for Vault and Keycloak to be available.
-   - Initializes Vault with the required KV secrets engine (`secret/keycloak/keys/signing`).
-   - Generates the initial signing key pair and stores it in Vault.
-   - Creates the `vault-integrated` realm in Keycloak.
-   - Configures the `vault-key-provider` (importing the key from Vault) and `fallback-key-provider` in the new realm.
-   - Creates a test client (`test-client`) and user (`testuser`/`password`) in the `vault-integrated` realm.
-   - Starts the hourly key rotation process.
-
-4. Wait a minute or two for all services to fully initialize, especially the `key-rotation` service's setup steps.
-
-5. Access the services:
-
-   - **Keycloak Admin Console**: http://localhost:8080/
-     - Username: `admin`
-     - Password: `admin`
-
-   - **HashiCorp Vault UI**: http://localhost:8201/ui
-     - Token: `root` (this is the development root token)
-
-### Optional: Using restart.sh
-
-The `./restart.sh` script provides a convenient way to stop, remove volumes (perform a clean wipe), and restart the services. It also includes an optional (currently non-functional) step to build the Keycloak Vault SPI.
-
-To perform a clean restart:
 ```bash
-./restart.sh
-```
-Follow the prompts (you can usually answer 'n' to skip the SPI build).
-
-### Verifying the Setup
-
-1. Access the Vault UI and navigate to:
-   - Secret → secret/keycloak/keys/signing
-   
-   You should see a JSON object containing your generated keys.
-
-2. Access Keycloak and log in with admin credentials.
-
-3. To see the custom realm with the Vault keys:
-   - Go to the dropdown in the top-left corner (currently showing 'master')
-   - Select 'vault-integrated' realm
-   - Go to Realm Settings
-   - Click on the 'Keys' tab
-   - You should see active keys listed. The `vault-key-provider` (using the key from Vault) and `fallback-key-provider` components are configured, although the imported Vault key might not be explicitly listed in the UI's 'Keys list' tab in Keycloak 22.
-
-4. Verify the Keycloak environment variables:
-   ```
-   docker exec -it keycloak env | grep KC_VAULT
-   ```
-   You should see the configured Vault URL, token, and key path.
-
-### Manual Key Rotation
-
-You can manually trigger key rotation by running:
-```
-docker exec -it key-rotation /scripts/rotate-keys-with-history.sh
+docker-compose up -d
 ```
 
-The script will:
-1. Generate a new RSA key pair
-2. Store it in Vault while preserving previous keys
-3. Set the new key as active
-4. Notify Keycloak to refresh its keys
-5. Display information about the new active key
+This single command will:
+1. Start all services (Keycloak, Vault, PostgreSQL)
+2. Run the initialization script automatically
+3. Create the realm and client in Keycloak
+4. Configure Vault integration and rotation
 
-### Display Active Key
+Everything will run in the background. To check progress, you can view the logs:
 
-To display information about the currently active key:
-```
-docker exec -it key-rotation /scripts/show-active-key.sh
+```bash
+docker logs -f client-secret-rotation
 ```
 
-### Stopping the Services
+### Option 2: Interactive Startup
 
-To stop all services:
-```
-docker-compose down
-```
+For a more interactive experience with visible logs:
 
-To stop and remove volumes (will delete all data):
-```
-docker-compose down -v
+```bash
+./start.sh
 ```
 
-## Project Components
+This script will start all services and show the logs during initialization.
 
-1. **Keycloak**: An open-source Identity and Access Management solution
-2. **HashiCorp Vault**: A secure secret management tool
-3. **PostgreSQL**: Database for Keycloak
-4. **Key Rotation Container**: Alpine-based container for key rotation scripts
-   - `rotate-keys-with-history.sh`: Generates and rotates keys
-   - `notify-keycloak.sh`: Notifies Keycloak about key rotations
-   - `show-active-key.sh`: Displays information about the active key
-   - `init-vault.sh`: Initializes Vault with required configuration
-   - `create-custom-realm.sh`: Creates a custom realm with Vault key integration
+## Project Structure
 
-## How It Works
+This project has been streamlined to include only the necessary components:
 
-1. The `docker-compose up` command starts all containers.
-2. The `key-rotation` container's entrypoint script waits for dependencies and then runs initialization scripts (`init-vault.sh`, `rotate-keys-with-history.sh`, `create-custom-realm.sh`, `setup-keycloak-provider.sh`).
-3. `init-vault.sh` configures the KV secrets engine in Vault.
-4. `rotate-keys-with-history.sh` generates the first key pair and saves it to Vault.
-5. `create-custom-realm.sh` creates the `vault-integrated` realm and configures the `vault-key-provider` (importing the Vault key) and `fallback-key-provider`.
-6. The `key-rotation` container then enters a loop, running `rotate-keys-with-history.sh` every hour.
-7. `rotate-keys-with-history.sh` generates a new key, adds it to Vault, updates the active key pointer, and calls `notify-keycloak.sh`.
-8. `notify-keycloak.sh` tells Keycloak to clear its key cache, forcing it to potentially reload keys (relevant if the SPI was working or if using a provider that reads dynamically).
-9. The `vault-key-provider` component (using the built-in `rsa` provider) in Keycloak holds the imported key details.
+```
+.
+├── docker-compose.yml    # Docker services configuration
+├── README.md             # This documentation
+├── ROADMAP.md            # Future development plans
+├── scripts/              # Core automation scripts
+│   ├── auto-initialize.sh            # Main initialization script
+│   ├── create-fresh-realm.sh         # Creates realm and client in Keycloak
+│   ├── cron-rotate-client-secret.sh  # Called by cron for rotation
+│   ├── init-vault.sh                 # Initializes Vault (if needed)
+│   ├── rotate-client-secret.sh       # Rotates client secrets
+│   └── setup-vault-integration-fresh.sh  # Sets up Vault integration
+├── start.sh              # Convenience script to start everything
+└── vault/                # Vault configuration (if needed)
+```
 
-## Next Steps
+The project has been streamlined to include only the essential scripts needed for core functionality, with all development and test scripts removed.
 
-Please refer to the ROADMAP.md file for detailed next steps, including:
-- Completing the Keycloak SPI implementation for native Vault integration
-- Enhancing security features
-- Implementing monitoring and alerting
-- Creating comprehensive documentation and deployment guides
+## Verification
+
+### Access Keycloak Admin Console
+
+- URL: http://localhost:8080/
+- Username: `admin`
+- Password: `admin`
+
+Navigate to the "fresh-realm" and check the "fresh-client" configuration.
+
+### Access Vault UI
+
+- URL: http://localhost:8201/ui
+- Token: `root`
+
+Navigate to "Secret > kv > data > keycloak > clients > fresh-realm > fresh-client" to see the stored client secret.
+
+## Client Applications
+
+Client applications should retrieve the client secret from Vault instead of hardcoding it. Here's a simple example in Python:
+
+```python
+import hvac
+import requests
+
+# Vault client configuration
+vault_client = hvac.Client(url='http://vault:8201', token='root')
+
+# Retrieve client secret from Vault
+secret_path = 'kv/data/keycloak/clients/fresh-realm/fresh-client'
+secret_response = vault_client.secrets.kv.v2.read_secret_version(path=secret_path)
+client_secret = secret_response['data']['data']['client_secret']
+
+# Use the secret for authentication with Keycloak
+auth_response = requests.post(
+    'http://keycloak:8080/realms/fresh-realm/protocol/openid-connect/token',
+    data={
+        'client_id': 'fresh-client',
+        'client_secret': client_secret,
+        'grant_type': 'client_credentials'
+    },
+    headers={'Content-Type': 'application/x-www-form-urlencoded'}
+)
+
+# Use the access token
+if auth_response.status_code == 200:
+    access_token = auth_response.json()['access_token']
+    # Use the access token for API calls
+    print(f"Got access token: {access_token[:10]}...")
+else:
+    print(f"Authentication failed: {auth_response.text}")
+```
+
+## Automated Rotation
+
+The client secret is automatically rotated daily at 2 AM by a cron job in the client-secret-rotation container. 
+
+Logs for the rotation are stored in:
+- `/var/log/keycloak-rotation/client-secret-rotation-YYYY-MM-DD.log` inside the container
+- The mounted volume `client_rotation_logs` on your host
 
 ## Troubleshooting
 
-- **Vault Connection Issues**: Ensure that the Vault token is correct and has appropriate permissions
-- **Key Rotation Failures**: Check key-rotation container logs with `docker logs key-rotation`
-- **Keycloak Issues**: Check Keycloak logs with `docker logs keycloak`
-- **Initialization Errors**: Make sure the init-vault.sh script completes successfully
-- **Key Refresh Issues**: If Keycloak doesn't update its keys, check the notify-keycloak.sh script output 
+### Authentication Issues
+
+If you encounter "invalid_client" errors:
+
+1. Check the Keycloak logs: `docker logs keycloak`
+2. Verify that the client secrets match between Keycloak and Vault
+3. Make sure the client is correctly configured in Keycloak (non-public, client credentials enabled)
+4. Restart the environment: `docker-compose down && ./start.sh`
+
+### Vault Integration Issues
+
+If Vault integration is not working:
+
+1. Check Vault's accessibility: `curl http://localhost:8201/v1/sys/health`
+2. Verify the Vault token has the correct permissions
+3. Ensure the secret path is correct
+4. Check that the KV secrets engine is enabled in Vault
+
+## Stopping the Environment
+
+To stop all services:
+
+```bash
+docker-compose down
+```
+
+To stop and remove all data (clean start):
+
+```bash
+docker-compose down -v
+```
+
+## Security Considerations
+
+- Use proper access controls and policies in Vault to restrict access to client secrets
+- Rotate Vault tokens regularly
+- Use TLS for all connections between components in production
+- Store sensitive configuration values in environment variables, not hardcoded in scripts
+- Implement proper error handling and alerting for failed rotations 
