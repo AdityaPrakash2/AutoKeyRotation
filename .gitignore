@@ -1,0 +1,92 @@
+# Docker and Vault
+vault/data/
+.vault-token
+.vault_password
+
+# Keycloak
+keycloak.log
+keycloak-*.json
+
+# Environment variables
+.env
+.env.local
+*.env.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker volumes
+docker-volumes/
+
+# Client secrets
+client_secrets.json
+*_secret.json
+
+# Python / Flask
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+.venv/
+.python-version
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# IDE folders and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+*~
+
+# Maven/Java
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml 

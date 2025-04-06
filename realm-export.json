@@ -1,0 +1,55 @@
+{
+  "id": "fresh-realm",
+  "realm": "fresh-realm",
+  "displayName": "Fresh Realm",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 30,
+  "defaultRoles": [
+    "offline_access",
+    "uma_authorization",
+    "default-roles-fresh-realm"
+  ],
+  "clients": [
+    {
+      "clientId": "fresh-client",
+      "name": "Fresh Client",
+      "description": "Managed client with secret in Vault",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${vault.kv.data.keycloak.clients.fresh-realm.fresh-client:client_secret}",
+      "redirectUris": ["http://localhost:5001/auth", "http://localhost:5001/*"],
+      "webOrigins": ["*"],
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "authorizationServicesEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "test-user",
+      "email": "test@example.com",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ]
+    }
+  ],
+  "eventsListeners": ["jboss-logging"]
+} 

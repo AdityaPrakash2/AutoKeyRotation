@@ -83,6 +83,32 @@ services:
           echo 'Running auto-initialization script...' &&
           /scripts/auto-initialize.sh daemon"
     restart: unless-stopped
+  
+  flask-app:
+    build: ./client-app
+    container_name: keycloak-flask-client
+    ports:
+      - "5001:5000"
+    environment:
+      - FLASK_SECRET_KEY=$(openssl rand -hex 32)
+      - VAULT_ADDR=http://vault:8201
+      - VAULT_TOKEN=root
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_EXTERNAL_URL=http://localhost:8080
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - REALM=fresh-realm
+      - CLIENT_ID=fresh-client
+    volumes:
+      - ./client-app:/app
+    networks:
+      - app-network
+    depends_on:
+      - vault
+      - keycloak
+      - client-secret-rotation
+    restart: unless-stopped
+    stop_grace_period: 10s
 
 networks:
   app-network:

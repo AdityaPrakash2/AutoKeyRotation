@@ -1,0 +1,7 @@
+Flask==2.3.2
+requests==2.31.0
+python-dotenv==1.0.0
+hvac==1.1.1
+flask-login==0.6.2
+authlib==1.2.1
+itsdangerous==2.1.2 

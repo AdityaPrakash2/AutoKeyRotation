@@ -6,6 +6,7 @@ This project demonstrates how to integrate HashiCorp Vault with Keycloak for aut
 2. Storing client secrets in HashiCorp Vault
 3. Rotating client secrets automatically
 4. Testing authentication with client secrets from Vault
+5. Demo Flask application showing integration in action
 
 ## Prerequisites
 
@@ -14,116 +15,140 @@ This project demonstrates how to integrate HashiCorp Vault with Keycloak for aut
 
 ## Quickstart
 
-### Option 1: Simple Docker Compose Command
-
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/keycloak-vault-integration.git
+cd keycloak-vault-integration
+
+# Start all services in the background
+# Please allow 30-60 seconds after running this command to ensure all components are fully setup!
 docker-compose up -d
+
+# Check running containers
+docker ps
+
+# View logs
+docker-compose logs -f
+
+# View logs for a specific service
+docker-compose logs -f keycloak
+docker-compose logs -f vault
+docker-compose logs -f flask-app
+docker-compose logs -f client-secret-rotation
+
+# Stop all services
+docker-compose down
 ```
 
-This single command will:
-1. Start all services (Keycloak, Vault, PostgreSQL)
-2. Run the initialization script automatically
-3. Create the realm and client in Keycloak
-4. Configure Vault integration and rotation
+## Components
 
-Everything will run in the background. To check progress, you can view the logs:
+The project consists of several components that work together:
 
-```bash
-docker logs -f client-secret-rotation
-```
+1. **Keycloak** - Identity and access management server
+2. **HashiCorp Vault** - Secret management server
+3. **Client Secret Rotation Service** - Alpine-based container that manages client secret rotation
+4. **Flask Demo App** - Web application that demonstrates the integration
+5. **PostgreSQL** - Database for Keycloak
 
-### Option 2: Interactive Startup
+## Accessing the Applications
 
-For a more interactive experience with visible logs:
+### Demo Flask Application
+- **URL**: http://localhost:5001/
+- **Features**:
+  - Login with Keycloak credentials:
+    - Username: `test-user`
+    - Password: `password`
+  - System Status Check (only visible after login)
+  - Direct Token Retrieval (only visible after login)
+  - Proper logout functionality
 
-```bash
-./start.sh
-```
+### Keycloak Admin Console
+- **URL**: http://localhost:8080/admin/
+- **Admin Credentials**:
+  - Username: `admin`
+  - Password: `admin`
+- **Key areas to explore**:
+  - Realms > fresh-realm > Clients > fresh-client
+  - Client settings and credentials
 
-This script will start all services and show the logs during initialization.
+### HashiCorp Vault UI
+- **URL**: http://localhost:8201/ui/
+- **Root Token**: `root`
+- **Key areas to explore**:
+  - Secrets > kv > keycloak > clients > fresh-realm > fresh-client
+  - Secret version history shows the rotation history
 
 ## Project Structure
-
-This project has been streamlined to include only the necessary components:
 
 ```
 .
 ├── docker-compose.yml    # Docker services configuration
 ├── README.md             # This documentation
 ├── ROADMAP.md            # Future development plans
+├── client-app/           # Demo Flask application
+│   ├── app.py            # Flask application code
+│   ├── Dockerfile        # Flask app container definition
+│   ├── requirements.txt  # Python dependencies
+│   └── templates/        # HTML templates for the web UI
 ├── scripts/              # Core automation scripts
 │   ├── auto-initialize.sh            # Main initialization script
+│   ├── cleanup-realms.sh             # Cleans up unnecessary realms
 │   ├── create-fresh-realm.sh         # Creates realm and client in Keycloak
 │   ├── cron-rotate-client-secret.sh  # Called by cron for rotation
-│   ├── init-vault.sh                 # Initializes Vault (if needed)
+│   ├── init-vault.sh                 # Initializes Vault
 │   ├── rotate-client-secret.sh       # Rotates client secrets
-│   └── setup-vault-integration-fresh.sh  # Sets up Vault integration
-├── start.sh              # Convenience script to start everything
-└── vault/                # Vault configuration (if needed)
+│   ├── setup-vault-integration-fresh.sh  # Sets up Vault integration
+│   └── update-client-for-webapp.sh   # Updates client for web application
+└── vault/                # Vault configuration files
 ```
 
-The project has been streamlined to include only the essential scripts needed for core functionality, with all development and test scripts removed.
+## How It Works
 
-## Verification
+### Client Secret Rotation
 
-### Access Keycloak Admin Console
+1. The rotation process:
+   - Retrieves the current client secret from both Keycloak and Vault
+   - Verifies they match to ensure consistency
+   - Generates a new client secret
+   - Updates the client secret in Keycloak
+   - Stores the new secret in Vault
+   - Tests authentication with the new secret
+   - Verifies the old secret no longer works
 
-- URL: http://localhost:8080/
-- Username: `admin`
-- Password: `admin`
+2. Automation:
+   - A cron job runs daily at 2 AM to rotate client secrets
+   - Logs are stored in the client_rotation_logs volume
+   - Secrets are rotated without disrupting client applications (they retrieve the latest secrets from Vault)
 
-Navigate to the "fresh-realm" and check the "fresh-client" configuration.
+### Flask Application Architecture
 
-### Access Vault UI
+1. The Flask app demonstrates proper integration:
+   - Retrieves the client secret from Vault before authenticating
+   - Uses separate URLs for internal communication vs. browser redirects
+   - Properly handles login and logout flows with Keycloak
+   - Demonstrates extracting user info from JWT tokens
+   - Implements session cleanup during shutdown
 
-- URL: http://localhost:8201/ui
-- Token: `root`
+2. Security features:
+   - API endpoints are protected and require authentication
+   - Only authenticated users can see system status and token options
+   - Proper session management with cleanup
 
-Navigate to "Secret > kv > data > keycloak > clients > fresh-realm > fresh-client" to see the stored client secret.
+## Manual Client Secret Rotation
 
-## Client Applications
+To manually rotate the client secret:
 
-Client applications should retrieve the client secret from Vault instead of hardcoding it. Here's a simple example in Python:
-
-```python
-import hvac
-import requests
-
-# Vault client configuration
-vault_client = hvac.Client(url='http://vault:8201', token='root')
-
-# Retrieve client secret from Vault
-secret_path = 'kv/data/keycloak/clients/fresh-realm/fresh-client'
-secret_response = vault_client.secrets.kv.v2.read_secret_version(path=secret_path)
-client_secret = secret_response['data']['data']['client_secret']
-
-# Use the secret for authentication with Keycloak
-auth_response = requests.post(
-    'http://keycloak:8080/realms/fresh-realm/protocol/openid-connect/token',
-    data={
-        'client_id': 'fresh-client',
-        'client_secret': client_secret,
-        'grant_type': 'client_credentials'
-    },
-    headers={'Content-Type': 'application/x-www-form-urlencoded'}
-)
-
-# Use the access token
-if auth_response.status_code == 200:
-    access_token = auth_response.json()['access_token']
-    # Use the access token for API calls
-    print(f"Got access token: {access_token[:10]}...")
-else:
-    print(f"Authentication failed: {auth_response.text}")
+```bash
+docker exec client-secret-rotation /scripts/rotate-client-secret.sh
 ```
 
-## Automated Rotation
+## Clearing Keycloak Sessions
 
-The client secret is automatically rotated daily at 2 AM by a cron job in the client-secret-rotation container. 
+To manually clear all Keycloak sessions:
 
-Logs for the rotation are stored in:
-- `/var/log/keycloak-rotation/client-secret-rotation-YYYY-MM-DD.log` inside the container
-- The mounted volume `client_rotation_logs` on your host
+```bash
+docker exec client-secret-rotation /scripts/clear-keycloak-sessions.sh
+```
 
 ## Troubleshooting
 
@@ -131,10 +156,23 @@ Logs for the rotation are stored in:
 
 If you encounter "invalid_client" errors:
 
-1. Check the Keycloak logs: `docker logs keycloak`
+1. Check the Keycloak logs: `docker-compose logs keycloak`
 2. Verify that the client secrets match between Keycloak and Vault
 3. Make sure the client is correctly configured in Keycloak (non-public, client credentials enabled)
-4. Restart the environment: `docker-compose down && ./start.sh`
+4. Try clearing all sessions: `docker exec client-secret-rotation /scripts/clear-keycloak-sessions.sh`
+5. Restart the environment: `docker-compose restart`
+
+### Session Persistence Issues
+
+If you're still logged in after restarting containers with `docker-compose down` and `docker-compose up`:
+
+1. Flask sessions are stored in browser cookies, and Keycloak sessions may persist in the database
+2. To completely clear all sessions, run:
+   ```bash
+   docker exec client-secret-rotation /scripts/clear-keycloak-sessions.sh
+   ```
+3. Additionally, clear your browser cookies for the application domain
+4. Each restart of the Flask app generates a new secret key, which should invalidate existing sessions
 
 ### Vault Integration Issues
 
@@ -145,24 +183,21 @@ If Vault integration is not working:
 3. Ensure the secret path is correct
 4. Check that the KV secrets engine is enabled in Vault
 
-## Stopping the Environment
+### Flask App Issues
 
-To stop all services:
+If the Flask demo app is not working properly:
 
-```bash
-docker-compose down
-```
-
-To stop and remove all data (clean start):
-
-```bash
-docker-compose down -v
-```
+1. Check the logs: `docker-compose logs flask-app`
+2. Try logging out and clearing sessions: `docker exec client-secret-rotation /scripts/clear-keycloak-sessions.sh`
+3. Verify the environment variables in the Docker Compose file
 
 ## Security Considerations
 
-- Use proper access controls and policies in Vault to restrict access to client secrets
-- Rotate Vault tokens regularly
-- Use TLS for all connections between components in production
-- Store sensitive configuration values in environment variables, not hardcoded in scripts
-- Implement proper error handling and alerting for failed rotations 
+- This demo uses the Vault root token and Keycloak admin credentials for simplicity
+- In production:
+  - Use proper access controls and policies in Vault
+  - Rotate Vault tokens regularly
+  - Use TLS for all connections between components
+  - Store sensitive configuration in a secure manner
+  - Implement proper monitoring and alerting for failed rotations
+
