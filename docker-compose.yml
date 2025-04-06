@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15
@@ -27,7 +25,7 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_VAULT_URL: http://vault:8201
       KC_VAULT_TOKEN: ${VAULT_TOKEN:-root}
-      KC_VAULT_KEY_PATH: secret/data/keycloak/keys/signing
+      KC_CLIENT_SECRETS_PATH: secret/data/keycloak/client-secrets
     command: start-dev
     ports:
       - "8080:8080"
@@ -55,11 +53,12 @@ services:
       - app-network
     restart: unless-stopped
 
-  key-rotation:
+  client-secret-rotation:
     image: alpine:latest
-    container_name: key-rotation
+    container_name: client-secret-rotation
     volumes:
       - ./scripts:/scripts
+      - client_rotation_logs:/var/log/keycloak-rotation
     depends_on:
       - vault
       - keycloak
@@ -69,11 +68,20 @@ services:
       - KEYCLOAK_URL=http://keycloak:8080
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
-      - REALM=master
+      - REALM=fresh-realm
+      - CLIENT_ID=fresh-client
+      - USE_VAULT=true
     networks:
       - app-network
     entrypoint: /bin/sh
-    command: -c "apk add --no-cache curl openssl bash coreutils jq && chmod +x /scripts/*.sh && echo 'Waiting for Vault and Keycloak to start...' && sleep 15 && echo 'Initializing Vault...' && /scripts/init-vault.sh && echo 'Generating initial keys...' && /scripts/rotate-keys-with-history.sh && echo 'Creating custom realm with Vault keys...' && /scripts/create-custom-realm.sh && echo 'Setting up Keycloak Provider...' && /scripts/setup-keycloak-provider.sh && echo 'Setup complete! Starting key rotation service...' && while true; do sleep 3600; /scripts/rotate-keys-with-history.sh; done"
+    command: >
+      -c "apk add --no-cache curl openssl bash coreutils jq util-linux dcron &&
+          mkdir -p /etc/cron.d &&
+          mkdir -p /var/log &&
+          touch /var/log/cron.log &&
+          chmod +x /scripts/*.sh &&
+          echo 'Running auto-initialization script...' &&
+          /scripts/auto-initialize.sh daemon"
     restart: unless-stopped
 
 networks:
@@ -82,4 +90,5 @@ networks:
 
 volumes:
   postgres_data:
-  vault_data: 
+  vault_data:
+  client_rotation_logs: 
