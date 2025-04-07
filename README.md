@@ -17,8 +17,8 @@ This project demonstrates how to integrate HashiCorp Vault with Keycloak for aut
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/keycloak-vault-integration.git
-cd keycloak-vault-integration
+git clone https://github.com/AdityaPrakash2/AutoKeyRotation.git
+cd AutoKeyRotation
 
 # Create your environment file from the example
 cp .env.example .env
@@ -195,6 +195,31 @@ If the Flask demo app is not working properly:
 1. Check the logs: `docker-compose logs flask-app`
 2. Try logging out and clearing sessions: `docker exec client-secret-rotation /scripts/clear-keycloak-sessions.sh`
 3. Verify the environment variables in the Docker Compose file
+
+## Windows Compatibility
+
+If you're running this project on Windows, you might encounter issues with shell script line endings. Windows uses CRLF line endings, but the scripts need to use LF line endings to run correctly in Docker containers.
+
+### Using the Helper Script
+
+A helper batch file is provided to convert scripts to the correct format:
+
+1. Install `dos2unix` via Git Bash, WSL, or Chocolatey
+2. Run the `prepare-scripts-for-windows.bat` file
+3. Restart your containers if they were already running
+
+### Manual Conversion
+
+Alternatively, you can manually convert the scripts:
+
+```bash
+# Using Git Bash or WSL
+find ./scripts -type f -name "*.sh" -exec dos2unix {} \;
+```
+
+### Git Configuration
+
+The repository includes a `.gitattributes` file that helps manage line endings correctly. If you're cloning the repository, Git should handle line endings automatically.
 
 ## Security Considerations
 
