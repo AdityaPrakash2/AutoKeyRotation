@@ -26,7 +26,7 @@ cp .env.example .env
 nano .env  # or use your preferred editor
 
 # Start all services in the background
-# Please allow 30-60 seconds after running this command to ensure all components are fully setup!
+# Please allow 60-120 seconds after running this command to ensure all components are fully setup!
 docker-compose up -d
 
 # Check running containers
@@ -70,15 +70,15 @@ The project consists of several components that work together:
 ### Keycloak Admin Console
 - **URL**: http://localhost:8080/admin/
 - **Admin Credentials**:
-  - Username: `admin`
-  - Password: `admin`
+  - Username: The value of `KEYCLOAK_ADMIN` from your .env file (default: `admin`)
+  - Password: The value of `KEYCLOAK_ADMIN_PASSWORD` from your .env file (default: `admin`)
 - **Key areas to explore**:
   - Realms > fresh-realm > Clients > fresh-client
   - Client settings and credentials
 
 ### HashiCorp Vault UI
 - **URL**: http://localhost:8201/ui/
-- **Root Token**: `root`
+- **Root Token**: The value of `VAULT_DEV_ROOT_TOKEN_ID` from your .env file (default: `root`)
 - **Key areas to explore**:
   - Secrets > kv > keycloak > clients > fresh-realm > fresh-client
   - Secret version history shows the rotation history
