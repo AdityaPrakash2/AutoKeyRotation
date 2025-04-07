@@ -20,6 +20,11 @@ This project demonstrates how to integrate HashiCorp Vault with Keycloak for aut
 git clone https://github.com/yourusername/keycloak-vault-integration.git
 cd keycloak-vault-integration
 
+# Create your environment file from the example
+cp .env.example .env
+# Edit the .env file to set secure passwords for production
+nano .env  # or use your preferred editor
+
 # Start all services in the background
 # Please allow 30-60 seconds after running this command to ensure all components are fully setup!
 docker-compose up -d
@@ -198,6 +203,23 @@ If the Flask demo app is not working properly:
   - Use proper access controls and policies in Vault
   - Rotate Vault tokens regularly
   - Use TLS for all connections between components
-  - Store sensitive configuration in a secure manner
-  - Implement proper monitoring and alerting for failed rotations
+  
+## Environment Variables
+
+This project uses environment variables for configuration to avoid hardcoding sensitive information. The main configuration is loaded from the `.env` file, which is not included in version control for security reasons.
+
+### Setup
+
+1. Copy the example configuration: `cp .env.example .env`
+2. Edit the `.env` file to set appropriate values for your environment
+3. For production deployments, ensure you use strong, unique passwords
+
+### Important Variables
+
+- **Database Configuration**: Controls PostgreSQL database access
+- **Keycloak Configuration**: Sets admin credentials and database access
+- **Vault Configuration**: Configures Vault tokens and access
+- **Flask App Configuration**: Controls the demo application settings
+
+In production environments, consider using a secrets management solution like HashiCorp Vault or AWS Secrets Manager to handle these variables rather than an `.env` file.
 

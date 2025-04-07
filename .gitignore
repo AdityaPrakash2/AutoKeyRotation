@@ -11,6 +11,10 @@ keycloak-*.json
 .env
 .env.local
 *.env.local
+.env.production
+.env.staging
+*.env.production.local
+*.env.staging.local
 
 # Logs
 logs/
@@ -18,13 +22,27 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+/var/log/
 
 # Docker volumes
 docker-volumes/
+*_data/
+postgres_data/
+client_rotation_logs/
 
-# Client secrets
+# Client secrets and credentials
 client_secrets.json
 *_secret.json
+*.pem
+*.key
+*.crt
+*.jks
+*.p12
+realm-export.json
+credentials.json
+secrets.yaml
+secrets.yml
+*password*
 
 # Python / Flask
 __pycache__/
@@ -51,6 +69,10 @@ wheels/
 venv/
 .venv/
 .python-version
+instance/
+.coverage
+htmlcov/
+.pytest_cache/
 
 # Node.js
 node_modules/
@@ -89,4 +111,12 @@ pom.xml.releaseBackup
 pom.xml.versionsBackup
 pom.xml.next
 release.properties
-dependency-reduced-pom.xml 
+dependency-reduced-pom.xml
+
+# Production artifacts
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+deployment/
+k8s-secrets.yaml 
