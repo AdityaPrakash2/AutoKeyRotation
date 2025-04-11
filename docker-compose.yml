@@ -59,6 +59,7 @@ services:
     volumes:
       - ./scripts:/scripts
       - client_rotation_logs:/var/log/keycloak-rotation
+      - ./.env:/.env
     depends_on:
       - vault
       - keycloak

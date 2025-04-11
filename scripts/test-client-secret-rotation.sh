@@ -5,6 +5,58 @@ echo "=========================================================="
 echo "           CLIENT SECRET ROTATION TESTING SUITE           "
 echo "=========================================================="
 
+# Enable debug mode with -d parameter
+if [ "$1" = "-d" ] || [ "$1" = "--debug" ]; then
+  DEBUG=true
+  echo "Debug mode enabled. Will print environment variables."
+else
+  DEBUG=false
+fi
+
+# Source the .env file if it exists
+# Check multiple possible locations since the script could be run from different contexts
+if [ -f "/.env" ]; then
+  ENV_FILE="/.env"
+elif [ -f "/app/.env" ]; then
+  ENV_FILE="/app/.env"
+elif [ -f "../.env" ]; then
+  ENV_FILE="../.env"
+fi
+
+if [ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ]; then
+  echo "Loading environment variables from .env file at $ENV_FILE..."
+  # Safer way to load variables without executing commands
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Skip empty lines and comments
+    if [ -z "$line" ] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+      continue
+    fi
+    
+    # Extract variable name and value
+    if [[ "$line" =~ ^([^=]+)=(.*)$ ]]; then
+      varname="${BASH_REMATCH[1]}"
+      varvalue="${BASH_REMATCH[2]}"
+      
+      # Remove quotes if present
+      if [[ "$varvalue" =~ ^\"(.*)\"$ ]] || [[ "$varvalue" =~ ^\'(.*)\'$ ]]; then
+        varvalue="${BASH_REMATCH[1]}"
+      fi
+      
+      # Skip variables with shell commands
+      if [[ "$varvalue" == *'$('* ]]; then
+        echo "Skipping variable with shell command: $varname"
+        continue
+      fi
+      
+      # Export the variable
+      export "$varname"="$varvalue"
+    fi
+  done < "$ENV_FILE"
+  echo "Environment variables loaded successfully."
+else
+  echo "Warning: .env file not found, using default values."
+fi
+
 # Configuration
 KEYCLOAK_URL=${KEYCLOAK_URL:-"http://keycloak:8080"}
 EXTERNAL_KEYCLOAK_URL=${EXTERNAL_KEYCLOAK_URL:-"http://localhost:8080"}
@@ -14,6 +66,19 @@ REALM=${REALM:-"fresh-realm"}
 CLIENT_ID=${CLIENT_ID:-"fresh-client"}
 TEST_USER=${TEST_USER:-"test-user"}
 TEST_PASSWORD=${TEST_PASSWORD:-"password"}
+
+# Print configuration in debug mode
+if [ "$DEBUG" = true ]; then
+  echo "=== CONFIGURATION ==="
+  echo "KEYCLOAK_URL: $KEYCLOAK_URL"
+  echo "EXTERNAL_KEYCLOAK_URL: $EXTERNAL_KEYCLOAK_URL"
+  echo "VAULT_ADDR: $VAULT_ADDR"
+  echo "VAULT_TOKEN: ${VAULT_TOKEN:0:3}..." # Only show first few chars for security
+  echo "REALM: $REALM"
+  echo "CLIENT_ID: $CLIENT_ID"
+  echo "ENV_FILE: $ENV_FILE"
+  echo "===================="
+fi
 
 # Colors for output
 GREEN='\033[0;32m'
