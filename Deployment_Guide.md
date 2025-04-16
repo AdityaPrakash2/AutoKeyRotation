@@ -11,7 +11,6 @@ This guide provides step-by-step instructions for setting up the client secret r
 ## 1. Initial Setup
 
 ### Clone the Repository
-
 ```bash
 git clone https://github.com/AdityaPrakash2/AutoKeyRotation.git
 cd AutoKeyRotation
@@ -87,11 +86,12 @@ The auto-initialization process creates the realm automatically. You can verify 
 docker exec client-secret-rotation /scripts/rotate-client-secret.sh
 ```
 
-### Verify Rotation
+### Run the Test Suite
 
-1. Check the new secret in Vault:
+To run the full suite of functional and security tests:
+
 ```bash
-docker exec vault vault kv get kv/keycloak/clients/fresh-realm/fresh-client
+docker exec client-secret-rotation /scripts/test-client-secret-rotation.sh
 ```
 
 ## 5. Stopping the Environment
