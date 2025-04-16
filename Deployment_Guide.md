@@ -49,7 +49,7 @@ This command will start all required services:
 - URL: http://localhost:8080/admin/
 - Admin credentials:
   - Username: The value of `KEYCLOAK_ADMIN` from your .env file (default: `admin`)
-  - Password: The value of `KEYCLOAK_ADMIN_PASSWORD` from your .env file (default: `change_me_in_production`)
+  - Password: The value of `KEYCLOAK_ADMIN_PASSWORD` from your .env file (default: `admin`)
 - After login, you can:
   - Manage realms, clients, and users
   - Configure authentication flows
@@ -57,7 +57,7 @@ This command will start all required services:
 
 #### Vault UI
 - URL: http://localhost:8201/ui/
-- Root token: The value of `VAULT_DEV_ROOT_TOKEN_ID` from your .env file (default: `change_me_in_production`)
+- Root token: The value of `root` from your .env file (default: `root`)
 - After login, you can:
   - View and manage secrets
   - Configure policies
@@ -92,16 +92,6 @@ docker exec client-secret-rotation /scripts/rotate-client-secret.sh
 1. Check the new secret in Vault:
 ```bash
 docker exec vault vault kv get kv/keycloak/clients/fresh-realm/fresh-client
-```
-
-2. Test authentication with the new secret:
-```bash
-curl -X POST \
-  "http://localhost:8080/realms/fresh-realm/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials" \
-  -d "client_id=fresh-client" \
-  -d "client_secret=$NEW_CLIENT_SECRET"
 ```
 
 ## 5. Stopping the Environment
